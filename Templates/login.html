@@ -3,17 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='styles.css')}}">
-    <title>Login</title>
+    <title>Document</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles.css') }}">
+
 </head>
 <body>
     <main>
         <form method="post" action="/login_validation">
-            <input type="email" name="email" placeholder="Enter Email"><br>
+            <input type="email" name="email" placeholder="Enter email"><br>
             <input type="password" name="password" placeholder="Enter password"><br>
-            <button type="submit" value="login">Login</button>
+            <button type="submit" value="Login">Login</button>
         </form>
-        <p>Don't have an account <br><a href="/signUp">create an account</a></p>
+        <p>Don't have an account? <br><a href="/signUp">create account</a></p>
+        <p><a href="/forgot_page">Forgot password?</a></p>
+        <img>
     </main>
 </body>
 </html>
