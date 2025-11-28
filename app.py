@@ -6,10 +6,13 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import random
 from flask_cors import CORS
+from password_Manager import password_Manager
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 CORS(app) 
+
+#---------- Routes -----------#
 
 @app.route('/')
 def login():
@@ -17,7 +20,6 @@ def login():
 
 @app.route('/signUp')
 def signUp():
-
     return render_template('signUp.html')
 
 @app.route('/home')
@@ -25,23 +27,26 @@ def home():
     fname = request.args.get('fname')
     lname = request.args.get('lname')
     email = request.args.get('email')
-
     return render_template('home.html', fname=fname, lname=lname, email=email)
 
 @app.route('/login_validation' ,methods=['POST'])
 def login_validation():
     email = request.form.get('email')
     password = request.form.get('password')
+    hashed_pw = password_Manager.hash_password(password)
 
     connection = sqlite3.connect('LoginData.db')
     cursor = connection.cursor()
 
-    user = cursor.execute("SELECT * FROM USERS WHERE email=? and password=?",(email,password)).fetchall()
+    user = cursor.execute("SELECT * FROM USERS WHERE email=? and password=?",(email,hashed_pw)).fetchall()
     connection.close()
 
     if(len(user)>0):
+        password_Manager.log_event(f"{email} logged in successfully")
         return redirect(f'/home?fname={user[0][0]}&lname={user[0][1]}&email={user[0][2]}')
     else:
+        password_Manager.log_event(f"Failed login attempt for {email}")
+        flash("Invalid credentials")
         return redirect('/login')
     
 @app.route('/add_user', methods=['POST'])
@@ -51,10 +56,17 @@ def add_user():
     email = request.form.get('email')
     password = request.form.get('password')
 
+    # Check the password strength
+    is_valid, msg = password_Manager.is_strong_password(password)
+    if not is_valid:
+        return render_template('signUp.html', msg=msg)
+
+    hashed_pw = password_Manager.hash_password(password)
+
     connection = sqlite3.connect('LoginData.db')
     cursor = connection.cursor()
 
-    ans = cursor.execute("SELECT * from USERS where email=? AND password=?",(email,password)).fetchall()
+    ans = cursor.execute("SELECT * from USERS where email=? AND password=?",(email,hashed_pw)).fetchall()
     if(len(ans)>0):
         connection.close()
         return render_template('signUp.html',msg="user already exists")
@@ -62,39 +74,9 @@ def add_user():
         cursor.execute("INSERT INTO USERS(first_name,last_name,email,password)values(?,?,?,?)",(fname,lname,email,password))
         connection.commit()
         connection.close()
+        password_Manager.log_event(f"New user registered: {email}")
         return render_template('login.html')
-
-def generate_otp():
-    """Generate a 6-digit OTP."""
-    otp = random.randint(100000, 999999)
-    return otp
-
-def send_email(sender_email, receiver_email, subject, body, smtp_server, smtp_port, login, password):
-    """Send an email with the specified parameters."""
-    # Create the email message object
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = receiver_email
-    msg['Subject'] = subject
-
-    # Attach the HTML email body
-    msg.attach(MIMEText(body, 'html'))
-
-    try:
-        # Establish connection to the server
-        server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()  # Upgrade to secure connection
-        server.login(login, password)
-        
-        # Send the email
-        server.sendmail(sender_email, receiver_email, msg.as_string())
-        print("Email sent successfully")
-        server.quit()
-        
-    except Exception as e:
-        print(f"Failed to send email: {e}")
     
-
 @app.route('/forgot_page')
 def forgot_page():
     return render_template('forgot-password.html')
@@ -114,7 +96,7 @@ def forgot_password():
         smtp_port = 587
 
         
-        sender_email = "nishankamath@gmail.com"
+        sender_email = "daniel.b.symonds@gmail.com"
         login = sender_email 
         
         password = "hxui wjwz adsz vycn"  # Your application-specific password
@@ -193,6 +175,37 @@ def check_otp():
             connection.close()
             return render_template('forgot-password.html', msg="Invalid OTP!")
 
+
+#--------- Utility ---------#
+def generate_otp():
+    """Generate a 6-digit OTP."""
+    otp = random.randint(100000, 999999)
+    return otp
+
+def send_email(sender_email, receiver_email, subject, body, smtp_server, smtp_port, login, password):
+    """Send an email with the specified parameters."""
+    # Create the email message object
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+    msg['Subject'] = subject
+
+    # Attach the HTML email body
+    msg.attach(MIMEText(body, 'html'))
+
+    try:
+        # Establish connection to the server
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()  # Upgrade to secure connection
+        server.login(login, password)
+        
+        # Send the email
+        server.sendmail(sender_email, receiver_email, msg.as_string())
+        print("Email sent successfully")
+        server.quit()
+        
+    except Exception as e:
+        print(f"Failed to send email: {e}")   
 
 if __name__ == '__main__':
     app.run(debug=True)
