@@ -2,6 +2,7 @@ from flask import Flask, redirect, render_template, request, flash,session
 import sqlite3
 import os
 import smtplib
+from waitress import serve
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import random
@@ -208,4 +209,4 @@ def send_email(sender_email, receiver_email, subject, body, smtp_server, smtp_po
         print(f"Failed to send email: {e}")   
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    serve(app, host="0.0.0.0", port=8000)
